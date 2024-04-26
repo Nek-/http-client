@@ -10,15 +10,21 @@ final class SetRequestTimeout extends ModifyRequest
         float $tcpConnectTimeout = 10,
         float $tlsHandshakeTimeout = 10,
         float $transferTimeout = 10,
+        float $inactivityTimeout = null,
     ) {
         parent::__construct(static function (Request $request) use (
             $tcpConnectTimeout,
             $tlsHandshakeTimeout,
-            $transferTimeout
+            $transferTimeout,
+            $inactivityTimeout
         ) {
             $request->setTcpConnectTimeout($tcpConnectTimeout);
             $request->setTlsHandshakeTimeout($tlsHandshakeTimeout);
             $request->setTransferTimeout($transferTimeout);
+
+            if (null !== $inactivityTimeout) {
+                $request->setInactivityTimeout($inactivityTimeout);
+            }
 
             return $request;
         });

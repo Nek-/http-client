@@ -242,4 +242,37 @@ class TimeoutTest extends AsyncTestCase
             $server->close();
         }
     }
+
+    public function testTimeoutDuringInactivity(): void
+    {
+        $server = listen("tcp://127.0.0.1:0");
+
+        EventLoop::queue(static function () use ($server): void {
+            while ($client = $server->accept()) {
+                $client->write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n.");
+
+                EventLoop::unreference(EventLoop::delay(3, static function () use ($client): void {
+                    $client->close();
+                }));
+            }
+        });
+
+        $this->setTimeout(2);
+
+        try {
+            $uri = "http://" . $server->getAddress() . "/";
+
+            $request = new Request($uri);
+
+            $client = new InterceptedHttpClient(new PooledHttpClient, new SetRequestTimeout(10, 10, 10, 1), []);
+            $response = $client->request($request, new NullCancellation);
+
+            $this->expectException(StreamException::class);
+            $this->expectExceptionMessage("HTTP response did not complete: Inactivity timeout exceeded, more than 1 seconds elapsed from last data received");
+
+            $response->getBody()->buffer();
+        } finally {
+            $server->close();
+        }
+    }
 }
